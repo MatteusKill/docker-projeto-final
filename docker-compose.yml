@@ -1,138 +1,161 @@
-services:
-  php:
-    build:
-      context: ./php
-    environment:
-      BACKEND_BASE_URL: http://backend:8000
-    volumes:
-      - ./php/src:/var/www/html:ro
-    depends_on:
-      backend:
-        condition: service_healthy
-    networks:
-      - php
-      - backend
-    healthcheck:
-      test: ["CMD-SHELL", "SCRIPT_NAME=/ping SCRIPT_FILENAME=/ping REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000 >/dev/null 2>&1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 256M
+name: projeto-final-basico
 
+services:
   nginx:
-    image: nginx:1.27-alpine
+    image: projeto-final-basico/nginx:${APP_VERSION:-dev}
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     ports:
-      - ${  _PORT}:80
+      - "127.0.0.1:${APP_PORT:-8080}:8080"
     volumes:
-      - ./php/src:/var/www/html:ro
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./logs/nginx:/var/log/nginx
     depends_on:
       php:
         condition: service_healthy
+      backend:
+        condition: service_healthy
     networks:
-      - php
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 256M
-
-  mysql:
-    image: mysql:8.0
-    environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-    volumes:
-      - mysql_data:/var/lib/mysql
-    networks:
-      - backend
+      - web
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"]
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/health || exit 1"]
       interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+      - /var/cache/nginx:rw,noexec,nosuid,size=16m
+      - /var/run:rw,noexec,nosuid,size=4m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 256M
+    cpus: 0.50
+    mem_limit: 128m
+    pids_limit: 100
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  phpmyadmin:
-    image: phpmyadmin:latest
-    ports:
-      - ${PMA_PORT}:80
+  php:
+    image: projeto-final-basico/php:${APP_VERSION:-dev}
+    build:
+      context: .
+      dockerfile: php/Dockerfile
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     environment:
-      PMA_HOST: ${PMA_HOST}
-      PMA_USER: ${PMA_USER}
-      PMA_PASSWORD: ${PMA_PASSWORD}
-    volumes:
+      BACKEND_BASE_URL: http://backend:8000
     networks:
+      - web
+    healthcheck:
+      test: ["CMD", "php-fpm", "-t"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+    cpus: 0.50
+    mem_limit: 192m
+    pids_limit: 100
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  backend:
+    image: projeto-final-basico/backend:${APP_VERSION:-dev}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${MYSQL_DATABASE:?execute ./scripts/setup.sh}
+      DB_USER: ${MYSQL_USER:?execute ./scripts/setup.sh}
+      DB_PASSWORD: ${MYSQL_PASSWORD:?execute ./scripts/setup.sh}
+      LOG_FILE: /app/logs/backend.log
+    volumes:
+      - ./logs/backend:/app/logs
     depends_on:
       mysql:
         condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 256M
-    
-
-  backend:
-    build:
-      context: ./backend
-    environment:
-      DB_HOST: ${DB_HOST}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
-    volumes:
-      - ./logs/api
+    networks:
+      - web
+      - data
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+    cpus: 0.75
+    mem_limit: 256m
+    pids_limit: 120
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  mysql:
+    image: mysql:8.4.5
+    user: "999:999"
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?execute ./scripts/setup.sh}
+      MYSQL_USER: ${MYSQL_USER:?execute ./scripts/setup.sh}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?execute ./scripts/setup.sh}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?execute ./scripts/setup.sh}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_ROOT_PASSWORD\" mysqladmin ping --host=127.0.0.1 --user=root --silent"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 15s
+      retries: 10
+      start_period: 40s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     restart: unless-stopped
-    networks:
-      - backend
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 256M
-
-
-  redis:
-    image: redis:6.2-alpine
-    restart: always
-    volumes:
-      - redis-data:/data
-    networks:
-      - backend
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 256M
+    cpus: 1.00
+    mem_limit: 512m
+    pids_limit: 200
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
-  backend:
+  web:
+  data:
     internal: true
-  php:
 
 volumes:
-  redis-data:
   mysql_data:
