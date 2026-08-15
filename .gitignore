@@ -1,4 +1,5 @@
 .env
-logs
-.*__pycache
-.*pyc
+backups/
+logs/
+__pycache__/
+*.py[cod]
