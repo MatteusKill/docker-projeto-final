@@ -33,6 +33,8 @@ if [ ! -f .env ]; then
         printf '%s\n' "MYSQL_USER=projeto_final_user"
         printf '%s\n' "MYSQL_PASSWORD=$mysql_password"
         printf '%s\n' "MYSQL_ROOT_PASSWORD=$mysql_root_password"
+        printf '\n'
+        printf '%s\n' "BACKUP_INTERVAL_SECONDS=86400"
     } > .env
     chmod 600 .env
     echo "Arquivo .env criado com senhas aleatórias."

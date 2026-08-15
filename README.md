@@ -1,11 +1,12 @@
 # Projeto Final — Containerização Básica e Segura
 
-Aplicação mínima com quatro serviços:
+Aplicação mínima com cinco serviços:
 
 - Nginx como servidor HTTP e proxy reverso;
 - PHP-FPM para renderizar a página;
 - FastAPI como backend;
-- MySQL como banco persistente.
+- MySQL como banco persistente;
+- Backup automático do MySQL.
 
 Não foram adicionados os diferenciais Redis, Traefik, Grafana, Prometheus,
 Portainer ou PHPMyAdmin.
@@ -24,6 +25,9 @@ Navegador
                                   |
                                   v
                                 MySQL
+                                  ^
+                                  |
+                     Backup automático ----> backups/
 ```
 
 Somente o Nginx publica uma porta. O MySQL existe apenas na rede interna
@@ -34,7 +38,7 @@ Somente o Nginx publica uma porta. O MySQL existe apenas na rede interna
 | Requisito | Implementação |
 |---|---|
 | Dockerfiles | imagens próprias para Nginx, PHP e FastAPI |
-| Docker Compose | quatro serviços e duas redes |
+| Docker Compose | cinco serviços e duas redes |
 | Banco persistente | volume nomeado `mysql_data` |
 | Proxy reverso | Nginx encaminha `/api/*` ao FastAPI |
 | Banco não exposto | MySQL não possui `ports` |
@@ -43,7 +47,7 @@ Somente o Nginx publica uma porta. O MySQL existe apenas na rede interna
 | Credenciais | `.env` local, ignorado pelo Git e com permissão 600 |
 | Limites | CPU, memória e PIDs por serviço |
 | Logs | `logs/nginx` e `logs/backend` |
-| Backup e restore | scripts manuais em `scripts/` |
+| Backup e restore | serviço automático, backup manual e script de restore |
 | Monitoramento mínimo | healthchecks, logs e `docker stats` |
 
 ## Estrutura principal
@@ -67,6 +71,7 @@ php/
 scripts/
   setup.sh
   backup.sh
+  backup-loop.sh      ciclo usado pelo serviço de backup
   restore.sh
 
 docker-compose.yml
@@ -180,16 +185,34 @@ docker compose exec backend python -c \
 
 O volume mantém dados entre recriações do container, mas não substitui backup.
 
-Crie um dump:
-
-```bash
-./scripts/backup.sh
-```
-
-O arquivo será salvo em:
+O serviço `backup` inicia junto com o Compose, cria um dump imediatamente e
+repete o processo a cada 24 horas. Os arquivos são gravados automaticamente em:
 
 ```text
 backups/projeto_final_DATA_HORA.sql
+```
+
+O intervalo é definido, em segundos, no `.env`:
+
+```text
+BACKUP_INTERVAL_SECONDS=86400
+```
+
+O serviço funciona somente enquanto o projeto estiver rodando. Ele não altera o
+crontab do computador. Para conferir seu estado e seu último log:
+
+```bash
+docker compose ps backup
+docker compose logs --tail=20 backup
+```
+
+Os backups antigos não são apagados automaticamente. Verifique periodicamente o
+espaço ocupado pela pasta `backups/`.
+
+Para criar um backup adicional imediatamente, ainda é possível executar:
+
+```bash
+./scripts/backup.sh
 ```
 
 Confirme que o arquivo existe e não está vazio:

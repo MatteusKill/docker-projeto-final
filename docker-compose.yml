@@ -152,6 +152,48 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  backup:
+    image: mysql:8.4.5
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    entrypoint: ["/bin/sh", "/usr/local/bin/backup-loop.sh"]
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?execute ./scripts/setup.sh}
+      MYSQL_USER: ${MYSQL_USER:?execute ./scripts/setup.sh}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?execute ./scripts/setup.sh}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_RETRY_SECONDS: 60
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup-loop.sh:/usr/local/bin/backup-loop.sh:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "test -s /backups/.last-success"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+    cpus: 0.25
+    mem_limit: 128m
+    pids_limit: 50
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 networks:
   web:
   data:
