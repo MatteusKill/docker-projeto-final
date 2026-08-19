@@ -57,6 +57,13 @@ docker compose exec -T mysql sh -c \
     'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql --host=127.0.0.1 --user=root "$MYSQL_DATABASE"' \
     < "$backup_file"
 
+if docker compose exec -T redis sh -c \
+    'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli DEL visits:total' >/dev/null; then
+    echo "Cache Redis invalidado."
+else
+    echo "Aviso: não foi possível invalidar o cache Redis." >&2
+fi
+
 docker compose start backend >/dev/null
 backend_stopped=false
 trap - 0 INT TERM

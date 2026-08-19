@@ -20,7 +20,7 @@ if ($response !== false) {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Projeto Final Básico</title>
+    <title>Projeto Final Docker</title>
     <style>
         body {
             max-width: 720px;
@@ -50,8 +50,8 @@ if ($response !== false) {
 </head>
 <body>
 <main>
-    <h1>Projeto Final Básico</h1>
-    <p>Esta página é executada pelo PHP-FPM e entregue pelo Nginx.</p>
+    <h1>Projeto Final Docker</h1>
+    <p>Esta página passa pelo Traefik e Nginx antes de chegar ao PHP-FPM.</p>
     <p>Backend FastAPI: <strong><?= htmlspecialchars($backendStatus, ENT_QUOTES, 'UTF-8') ?></strong></p>
     <p>Visitas registradas: <strong id="total">carregando...</strong></p>
     <button id="register" type="button">Registrar visita</button>
@@ -76,7 +76,7 @@ if ($response !== false) {
             const response = await fetch('/api/visits', { method: 'POST' });
             if (!response.ok) throw new Error('Falha ao registrar visita.');
             await updateTotal();
-            message.textContent = 'Visita salva no MySQL.';
+            message.textContent = 'Visita salva no MySQL e cache Redis invalidado.';
         } catch (error) {
             message.textContent = error.message;
         } finally {
