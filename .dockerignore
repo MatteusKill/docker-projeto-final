@@ -5,3 +5,4 @@ logs
 __pycache__
 *.py[cod]
 README.md
+load-tests

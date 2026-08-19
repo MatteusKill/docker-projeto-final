@@ -1,0 +1,27 @@
+entryPoints:
+  web:
+    address: ":8080"
+  management:
+    address: ":8082"
+
+providers:
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+
+api:
+  dashboard: true
+
+ping:
+  entryPoint: management
+
+metrics:
+  prometheus:
+    entryPoint: management
+
+log:
+  level: INFO
+  filePath: /var/log/traefik/traefik.log
+
+accessLog:
+  filePath: /var/log/traefik/access.log
