@@ -1,4 +1,4 @@
-name: projeto-final-basico
+name: projeto-final
 
 services:
   traefik:
@@ -41,7 +41,7 @@ services:
         max-file: "3"
 
   nginx:
-    image: projeto-final-basico/nginx:${APP_VERSION:-dev}
+    image: projeto-final/nginx:${APP_VERSION:-dev}
     build:
       context: .
       dockerfile: nginx/Dockerfile
@@ -81,7 +81,7 @@ services:
         max-file: "3"
 
   php:
-    image: projeto-final-basico/php:${APP_VERSION:-dev}
+    image: projeto-final/php:${APP_VERSION:-dev}
     build:
       context: .
       dockerfile: php/Dockerfile
@@ -114,7 +114,7 @@ services:
         max-file: "3"
 
   backend:
-    image: projeto-final-basico/backend:${APP_VERSION:-dev}
+    image: projeto-final/backend:${APP_VERSION:-dev}
     build:
       context: .
       dockerfile: backend/Dockerfile
