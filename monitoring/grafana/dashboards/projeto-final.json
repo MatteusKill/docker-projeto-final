@@ -48,11 +48,11 @@
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}, "unit": "suffix: erros"}, "overrides": []},
       "gridPos": {"h": 8, "w": 12, "x": 12, "y": 13},
       "id": 5,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
-      "targets": [{"editorMode": "code", "expr": "sum(increase(backend_database_errors_total[5m]))", "legendFormat": "erros", "range": true, "refId": "A"}],
+      "targets": [{"editorMode": "code", "expr": "sum(increase(backend_database_errors_total[5m])) or vector(0)", "legendFormat": "erros", "range": true, "refId": "A"}],
       "title": "Erros de banco nos últimos 5 minutos",
       "type": "stat"
     }
